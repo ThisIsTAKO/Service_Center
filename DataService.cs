@@ -84,6 +84,58 @@ namespace Lab678.Services
             return _database.PledgeItems.Find(p => p.Id == id);
         }
 
+        // Добавление клиента
+        public void AddClient(Client client)
+        {
+            _database.Clients.Add(client);
+        }
+
+        // Добавление залогового предмета
+        public void AddPledgeItem(PledgeItem item)
+        {
+            _database.PledgeItems.Add(item);
+        }
+
+        // Добавление займа
+        public void AddLoan(Loan loan)
+        {
+            _database.Loans.Add(loan);
+        }
+
+        // Добавление платежа
+        public void AddPayment(Payment payment)
+        {
+            _database.Payments.Add(payment);
+        }
+
+        // Удаление клиента
+        public void RemoveClient(int id)
+        {
+            var client = _database.Clients.Find(c => c.Id == id);
+            if (client != null) _database.Clients.Remove(client);
+        }
+
+        // Удаление залогового предмета
+        public void RemovePledgeItem(int id)
+        {
+            var item = _database.PledgeItems.Find(p => p.Id == id);
+            if (item != null) _database.PledgeItems.Remove(item);
+        }
+
+        // Удаление займа
+        public void RemoveLoan(int id)
+        {
+            var loan = _database.Loans.Find(l => l.Id == id);
+            if (loan != null) _database.Loans.Remove(loan);
+        }
+
+        // Удаление платежа
+        public void RemovePayment(int id)
+        {
+            var payment = _database.Payments.Find(p => p.Id == id);
+            if (payment != null) _database.Payments.Remove(payment);
+        }
+
         // Инициализация тестовых данных
         private void InitializeTestData()
         {
