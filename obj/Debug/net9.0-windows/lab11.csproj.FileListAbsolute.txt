@@ -1,0 +1,21 @@
+C:\Рабочий стол\МДК 02.02 Ничипорук\lab11\obj\Debug\net9.0-windows\lab11.GeneratedMSBuildEditorConfig.editorconfig
+C:\Рабочий стол\МДК 02.02 Ничипорук\lab11\obj\Debug\net9.0-windows\lab11.AssemblyInfoInputs.cache
+C:\Рабочий стол\МДК 02.02 Ничипорук\lab11\obj\Debug\net9.0-windows\lab11.AssemblyInfo.cs
+C:\Рабочий стол\МДК 02.02 Ничипорук\lab11\obj\Debug\net9.0-windows\lab11.csproj.CoreCompileInputs.cache
+C:\Рабочий стол\МДК 02.02 Ничипорук\lab11\bin\Debug\net9.0-windows\lab11.exe
+C:\Рабочий стол\МДК 02.02 Ничипорук\lab11\bin\Debug\net9.0-windows\lab11.deps.json
+C:\Рабочий стол\МДК 02.02 Ничипорук\lab11\bin\Debug\net9.0-windows\lab11.runtimeconfig.json
+C:\Рабочий стол\МДК 02.02 Ничипорук\lab11\bin\Debug\net9.0-windows\lab11.dll
+C:\Рабочий стол\МДК 02.02 Ничипорук\lab11\bin\Debug\net9.0-windows\lab11.pdb
+C:\Рабочий стол\МДК 02.02 Ничипорук\lab11\obj\Debug\net9.0-windows\lab11.dll
+C:\Рабочий стол\МДК 02.02 Ничипорук\lab11\obj\Debug\net9.0-windows\refint\lab11.dll
+C:\Рабочий стол\МДК 02.02 Ничипорук\lab11\obj\Debug\net9.0-windows\lab11.pdb
+C:\Рабочий стол\МДК 02.02 Ничипорук\lab11\obj\Debug\net9.0-windows\lab11.genruntimeconfig.cache
+C:\Рабочий стол\МДК 02.02 Ничипорук\lab11\obj\Debug\net9.0-windows\ref\lab11.dll
+C:\Users\igume\OneDrive\Desktop\МДК 02.02\Привет\lab11\obj\Debug\net9.0-windows\lab11.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\igume\OneDrive\Desktop\МДК 02.02\Привет\lab11\obj\Debug\net9.0-windows\lab11.AssemblyInfoInputs.cache
+C:\Users\igume\OneDrive\Desktop\МДК 02.02\Привет\lab11\obj\Debug\net9.0-windows\lab11.AssemblyInfo.cs
+C:\Users\igume\OneDrive\Desktop\МДК 02.02\Привет\lab11\obj\Debug\net9.0-windows\lab11.csproj.CoreCompileInputs.cache
+C:\Users\igume\OneDrive\Desktop\МДК 02.02\Привет\lab11\obj\Debug\net9.0-windows\lab11.dll
+C:\Users\igume\OneDrive\Desktop\МДК 02.02\Привет\lab11\obj\Debug\net9.0-windows\refint\lab11.dll
+C:\Users\igume\OneDrive\Desktop\МДК 02.02\Привет\lab11\obj\Debug\net9.0-windows\lab11.pdb
