@@ -1,31 +1,31 @@
-using System;
+﻿#nullable disable
+using System.ComponentModel;
 using System.Drawing;
-using System.Linq;
 using System.Windows.Forms;
+using System;
+using System.Linq;
 using Lab678.Models;
 using Lab678.Services;
-
 namespace Lab678.Forms
 {
-    public class PaymentForm : Form
+    public partial class PaymentForm : Form
     {
-        private ComboBox cmbLoan;
+        private ComboBox cmbRepairOrder;
         private DateTimePicker dtpPaymentDate;
         private NumericUpDown numAmount;
         private ComboBox cmbPaymentType;
         private Button btnSave;
         private Button btnCancel;
         
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Payment Payment { get; private set; }
         private DataService _dataService;
         
         public PaymentForm(DataService dataService, Payment payment = null)
         {
             _dataService = dataService;
-            Payment = payment ?? new Payment 
-            { 
-                PaymentDate = DateTime.Now
-            };
+            Payment = payment ?? new Payment { PaymentDate = DateTime.Now };
             InitializeComponents();
             LoadComboBoxData();
             if (payment != null)
@@ -37,7 +37,7 @@ namespace Lab678.Forms
         private void InitializeComponents()
         {
             this.Text = Payment.Id == 0 ? "Добавить платеж" : "Редактировать платеж";
-            this.Size = new Size(500, 330);
+            this.Size = new Size(500, 350);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -49,24 +49,24 @@ namespace Lab678.Forms
             int topMargin = 20;
             int verticalSpacing = 45;
             
-            // Займ
-            Label lblLoan = new Label
+            // Заказ на ремонт
+            Label lblRepairOrder = new Label
             {
-                Text = "Займ:",
+                Text = "Заказ на ремонт:",
                 Location = new Point(leftMargin, topMargin),
                 Size = new Size(labelWidth, 20),
                 Font = new Font("Segoe UI", 10)
             };
-            this.Controls.Add(lblLoan);
+            this.Controls.Add(lblRepairOrder);
             
-            cmbLoan = new ComboBox
+            cmbRepairOrder = new ComboBox
             {
                 Location = new Point(leftMargin + 160, topMargin),
                 Size = new Size(textBoxWidth, 25),
                 Font = new Font("Segoe UI", 10),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
-            this.Controls.Add(cmbLoan);
+            this.Controls.Add(cmbRepairOrder);
             
             // Дата платежа
             Label lblPaymentDate = new Label
@@ -126,7 +126,7 @@ namespace Lab678.Forms
                 Font = new Font("Segoe UI", 10),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
-            cmbPaymentType.Items.AddRange(new object[] { "Основной долг", "Проценты", "Штраф" });
+            cmbPaymentType.Items.AddRange(new object[] { "Предоплата", "Оплата по факту", "Доплата" });
             this.Controls.Add(cmbPaymentType);
             
             // Кнопки
@@ -159,29 +159,28 @@ namespace Lab678.Forms
         
         private void LoadComboBoxData()
         {
-            var loans = _dataService.GetAllLoans();
-            foreach (var loan in loans)
+            var orders = _dataService.GetAllRepairOrders();
+            foreach (var order in orders)
             {
-                var client = _dataService.GetClientById(loan.ClientId);
-                string loanText = $"Займ №{loan.Id} - {client?.FullName ?? "Неизвестен"} - {loan.LoanAmount:N0} ₽";
-                cmbLoan.Items.Add(new ComboBoxItem { Value = loan.Id, Text = loanText });
+                var client = _dataService.GetClientById(order.ClientId);
+                string orderText = $"Заказ №{order.Id} - {client?.FullName ?? "Неизвестен"} - {order.DeviceType}";
+                cmbRepairOrder.Items.Add(new ComboBoxItem { Value = order.Id, Text = orderText });
             }
         }
         
         private void LoadPaymentData()
         {
-            var loanItem = cmbLoan.Items.Cast<ComboBoxItem>().FirstOrDefault(i => i.Value == Payment.LoanId);
-            if (loanItem != null) cmbLoan.SelectedItem = loanItem;
+            var orderItem = cmbRepairOrder.Items.Cast<ComboBoxItem>().FirstOrDefault(i => i.Value == Payment.RepairOrderId);
+            if (orderItem != null) cmbRepairOrder.SelectedItem = orderItem;
             
             dtpPaymentDate.Value = Payment.PaymentDate;
             numAmount.Value = Payment.Amount;
-            if (cmbPaymentType.Items.Contains(Payment.PaymentType))
-                cmbPaymentType.SelectedItem = Payment.PaymentType;
+            if (cmbPaymentType.Items.Contains(Payment.PaymentType)) cmbPaymentType.SelectedItem = Payment.PaymentType;
         }
         
         private void BtnSave_Click(object sender, EventArgs e)
         {
-            if (cmbLoan.SelectedIndex == -1 || 
+            if (cmbRepairOrder.SelectedIndex == -1 || 
                 cmbPaymentType.SelectedIndex == -1)
             {
                 MessageBox.Show("Заполните все обязательные поля", 
@@ -189,7 +188,7 @@ namespace Lab678.Forms
                 return;
             }
             
-            Payment.LoanId = ((ComboBoxItem)cmbLoan.SelectedItem).Value;
+            Payment.RepairOrderId = ((ComboBoxItem)cmbRepairOrder.SelectedItem).Value;
             Payment.PaymentDate = dtpPaymentDate.Value;
             Payment.Amount = numAmount.Value;
             Payment.PaymentType = cmbPaymentType.SelectedItem.ToString();

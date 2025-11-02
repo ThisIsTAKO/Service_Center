@@ -1,50 +1,48 @@
-using System;
+﻿#nullable disable
+using System.ComponentModel;
 using System.Drawing;
-using System.Linq;
 using System.Windows.Forms;
+using System;
+using System.Linq;
 using Lab678.Models;
 using Lab678.Services;
-
 namespace Lab678.Forms
 {
-    public class LoanForm : Form
+    public partial class RepairOrderForm : Form
     {
         private ComboBox cmbClient;
-        private ComboBox cmbPledgeItem;
-        private NumericUpDown numLoanAmount;
-        private NumericUpDown numInterestRate;
-        private DateTimePicker dtpIssueDate;
-        private DateTimePicker dtpDueDate;
+        private TextBox txtDeviceType;
+        private TextBox txtDeviceModel;
+        private TextBox txtProblemDescription;
+        private NumericUpDown numEstimatedCost;
+        private DateTimePicker dtpOrderDate;
+        private DateTimePicker dtpCompletionDate;
         private ComboBox cmbStatus;
         private NumericUpDown numPaidAmount;
         private Button btnSave;
         private Button btnCancel;
         
-        public Loan Loan { get; private set; }
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public RepairOrder RepairOrder { get; private set; }
         private DataService _dataService;
         
-        public LoanForm(DataService dataService, Loan loan = null)
+        public RepairOrderForm(DataService dataService, RepairOrder order = null)
         {
             _dataService = dataService;
-            Loan = loan ?? new Loan 
-            { 
-                IssueDate = DateTime.Now,
-                DueDate = DateTime.Now.AddMonths(3),
-                Status = "Активный",
-                PaidAmount = 0
-            };
+            RepairOrder = order ?? new RepairOrder { OrderDate = DateTime.Now, Status = "Принят", PaidAmount = 0 };
             InitializeComponents();
             LoadComboBoxData();
-            if (loan != null)
+            if (order != null)
             {
-                LoadLoanData();
+                LoadRepairOrderData();
             }
         }
         
         private void InitializeComponents()
         {
-            this.Text = Loan.Id == 0 ? "Добавить займ" : "Редактировать займ";
-            this.Size = new Size(500, 480);
+            this.Text = RepairOrder.Id == 0 ? "Добавить заказ на ремонт" : "Редактировать заказ на ремонт";
+            this.Size = new Size(500, 550);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -75,38 +73,74 @@ namespace Lab678.Forms
             };
             this.Controls.Add(cmbClient);
             
-            // Залоговый предмет
-            Label lblPledgeItem = new Label
+            // Тип устройства
+            Label lblDeviceType = new Label
             {
-                Text = "Залоговый предмет:",
+                Text = "Тип устройства:",
                 Location = new Point(leftMargin, topMargin + verticalSpacing),
                 Size = new Size(labelWidth, 20),
                 Font = new Font("Segoe UI", 10)
             };
-            this.Controls.Add(lblPledgeItem);
+            this.Controls.Add(lblDeviceType);
             
-            cmbPledgeItem = new ComboBox
+            txtDeviceType = new TextBox
             {
                 Location = new Point(leftMargin + 160, topMargin + verticalSpacing),
                 Size = new Size(textBoxWidth, 25),
-                Font = new Font("Segoe UI", 10),
-                DropDownStyle = ComboBoxStyle.DropDownList
+                Font = new Font("Segoe UI", 10)
             };
-            this.Controls.Add(cmbPledgeItem);
+            this.Controls.Add(txtDeviceType);
             
-            // Сумма займа
-            Label lblLoanAmount = new Label
+            // Модель устройства
+            Label lblDeviceModel = new Label
             {
-                Text = "Сумма займа:",
+                Text = "Модель устройства:",
                 Location = new Point(leftMargin, topMargin + verticalSpacing * 2),
                 Size = new Size(labelWidth, 20),
                 Font = new Font("Segoe UI", 10)
             };
-            this.Controls.Add(lblLoanAmount);
+            this.Controls.Add(lblDeviceModel);
             
-            numLoanAmount = new NumericUpDown
+            txtDeviceModel = new TextBox
             {
                 Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 2),
+                Size = new Size(textBoxWidth, 25),
+                Font = new Font("Segoe UI", 10)
+            };
+            this.Controls.Add(txtDeviceModel);
+            
+            // Описание проблемы
+            Label lblProblemDescription = new Label
+            {
+                Text = "Описание проблемы:",
+                Location = new Point(leftMargin, topMargin + verticalSpacing * 3),
+                Size = new Size(labelWidth, 20),
+                Font = new Font("Segoe UI", 10)
+            };
+            this.Controls.Add(lblProblemDescription);
+            
+            txtProblemDescription = new TextBox
+            {
+                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 3),
+                Size = new Size(textBoxWidth, 60),
+                Font = new Font("Segoe UI", 10),
+                Multiline = true
+            };
+            this.Controls.Add(txtProblemDescription);
+            
+            // Оценочная стоимость
+            Label lblEstimatedCost = new Label
+            {
+                Text = "Оценочная стоимость:",
+                Location = new Point(leftMargin, topMargin + verticalSpacing * 4 + 15),
+                Size = new Size(labelWidth, 20),
+                Font = new Font("Segoe UI", 10)
+            };
+            this.Controls.Add(lblEstimatedCost);
+            
+            numEstimatedCost = new NumericUpDown
+            {
+                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 4 + 15),
                 Size = new Size(textBoxWidth, 25),
                 Font = new Font("Segoe UI", 10),
                 Maximum = 10000000,
@@ -114,72 +148,51 @@ namespace Lab678.Forms
                 DecimalPlaces = 0,
                 ThousandsSeparator = true
             };
-            this.Controls.Add(numLoanAmount);
+            this.Controls.Add(numEstimatedCost);
             
-            // Процентная ставка
-            Label lblInterestRate = new Label
+            // Дата заказа
+            Label lblOrderDate = new Label
             {
-                Text = "Процент (%):",
-                Location = new Point(leftMargin, topMargin + verticalSpacing * 3),
+                Text = "Дата заказа:",
+                Location = new Point(leftMargin, topMargin + verticalSpacing * 5 + 15),
                 Size = new Size(labelWidth, 20),
                 Font = new Font("Segoe UI", 10)
             };
-            this.Controls.Add(lblInterestRate);
+            this.Controls.Add(lblOrderDate);
             
-            numInterestRate = new NumericUpDown
+            dtpOrderDate = new DateTimePicker
             {
-                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 3),
-                Size = new Size(textBoxWidth, 25),
-                Font = new Font("Segoe UI", 10),
-                Maximum = 100,
-                Minimum = 0,
-                DecimalPlaces = 1
-            };
-            this.Controls.Add(numInterestRate);
-            
-            // Дата выдачи
-            Label lblIssueDate = new Label
-            {
-                Text = "Дата выдачи:",
-                Location = new Point(leftMargin, topMargin + verticalSpacing * 4),
-                Size = new Size(labelWidth, 20),
-                Font = new Font("Segoe UI", 10)
-            };
-            this.Controls.Add(lblIssueDate);
-            
-            dtpIssueDate = new DateTimePicker
-            {
-                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 4),
+                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 5 + 15),
                 Size = new Size(textBoxWidth, 25),
                 Font = new Font("Segoe UI", 10),
                 Format = DateTimePickerFormat.Short
             };
-            this.Controls.Add(dtpIssueDate);
+            this.Controls.Add(dtpOrderDate);
             
-            // Срок погашения
-            Label lblDueDate = new Label
+            // Дата завершения
+            Label lblCompletionDate = new Label
             {
-                Text = "Срок погашения:",
-                Location = new Point(leftMargin, topMargin + verticalSpacing * 5),
+                Text = "Дата завершения:",
+                Location = new Point(leftMargin, topMargin + verticalSpacing * 6 + 15),
                 Size = new Size(labelWidth, 20),
                 Font = new Font("Segoe UI", 10)
             };
-            this.Controls.Add(lblDueDate);
+            this.Controls.Add(lblCompletionDate);
             
-            dtpDueDate = new DateTimePicker
+            dtpCompletionDate = new DateTimePicker
             {
-                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 5),
+                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 6 + 15),
                 Size = new Size(textBoxWidth, 25),
                 Font = new Font("Segoe UI", 10),
                 Format = DateTimePickerFormat.Short
             };
-            this.Controls.Add(dtpDueDate);
+            this.Controls.Add(dtpCompletionDate);
             
             // Статус
             Label lblStatus = new Label
             {
                 Text = "Статус:",
-                Location = new Point(leftMargin, topMargin + verticalSpacing * 6),
+                Location = new Point(leftMargin, topMargin + verticalSpacing * 7 + 15),
                 Size = new Size(labelWidth, 20),
                 Font = new Font("Segoe UI", 10)
             };
@@ -187,19 +200,19 @@ namespace Lab678.Forms
             
             cmbStatus = new ComboBox
             {
-                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 6),
+                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 7 + 15),
                 Size = new Size(textBoxWidth, 25),
                 Font = new Font("Segoe UI", 10),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
-            cmbStatus.Items.AddRange(new object[] { "Активный", "Погашен", "Просрочен" });
+            cmbStatus.Items.AddRange(new object[] { "Принят", "В работе", "Завершен", "Отменен" });
             this.Controls.Add(cmbStatus);
             
             // Уплаченная сумма
             Label lblPaidAmount = new Label
             {
                 Text = "Уплаченная сумма:",
-                Location = new Point(leftMargin, topMargin + verticalSpacing * 7),
+                Location = new Point(leftMargin, topMargin + verticalSpacing * 8 + 15),
                 Size = new Size(labelWidth, 20),
                 Font = new Font("Segoe UI", 10)
             };
@@ -207,7 +220,7 @@ namespace Lab678.Forms
             
             numPaidAmount = new NumericUpDown
             {
-                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 7),
+                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 8 + 15),
                 Size = new Size(textBoxWidth, 25),
                 Font = new Font("Segoe UI", 10),
                 Maximum = 10000000,
@@ -221,7 +234,7 @@ namespace Lab678.Forms
             btnSave = new Button
             {
                 Text = "Сохранить",
-                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 8),
+                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 9 + 30),
                 Size = new Size(140, 35),
                 BackColor = Color.FromArgb(46, 204, 113),
                 ForeColor = Color.White,
@@ -234,7 +247,7 @@ namespace Lab678.Forms
             btnCancel = new Button
             {
                 Text = "Отмена",
-                Location = new Point(leftMargin + 320, topMargin + verticalSpacing * 8),
+                Location = new Point(leftMargin + 320, topMargin + verticalSpacing * 9 + 30),
                 Size = new Size(140, 35),
                 BackColor = Color.FromArgb(231, 76, 60),
                 ForeColor = Color.White,
@@ -252,35 +265,27 @@ namespace Lab678.Forms
             {
                 cmbClient.Items.Add(new ComboBoxItem { Value = client.Id, Text = client.FullName });
             }
-            
-            var pledgeItems = _dataService.GetAllPledgeItems();
-            foreach (var item in pledgeItems)
-            {
-                cmbPledgeItem.Items.Add(new ComboBoxItem { Value = item.Id, Text = item.Name });
-            }
         }
         
-        private void LoadLoanData()
+        private void LoadRepairOrderData()
         {
-            var clientItem = cmbClient.Items.Cast<ComboBoxItem>().FirstOrDefault(i => i.Value == Loan.ClientId);
+            var clientItem = cmbClient.Items.Cast<ComboBoxItem>().FirstOrDefault(i => i.Value == RepairOrder.ClientId);
             if (clientItem != null) cmbClient.SelectedItem = clientItem;
             
-            var pledgeItem = cmbPledgeItem.Items.Cast<ComboBoxItem>().FirstOrDefault(i => i.Value == Loan.PledgeItemId);
-            if (pledgeItem != null) cmbPledgeItem.SelectedItem = pledgeItem;
-            
-            numLoanAmount.Value = Loan.LoanAmount;
-            numInterestRate.Value = Loan.InterestRate;
-            dtpIssueDate.Value = Loan.IssueDate;
-            dtpDueDate.Value = Loan.DueDate;
-            if (cmbStatus.Items.Contains(Loan.Status))
-                cmbStatus.SelectedItem = Loan.Status;
-            numPaidAmount.Value = Loan.PaidAmount;
+            txtDeviceType.Text = RepairOrder.DeviceType;
+            txtDeviceModel.Text = RepairOrder.DeviceModel;
+            txtProblemDescription.Text = RepairOrder.ProblemDescription;
+            numEstimatedCost.Value = RepairOrder.EstimatedCost;
+            dtpOrderDate.Value = RepairOrder.OrderDate;
+            if (RepairOrder.CompletionDate.HasValue) dtpCompletionDate.Value = RepairOrder.CompletionDate.Value;
+            if (cmbStatus.Items.Contains(RepairOrder.Status)) cmbStatus.SelectedItem = RepairOrder.Status;
+            numPaidAmount.Value = RepairOrder.PaidAmount;
         }
         
         private void BtnSave_Click(object sender, EventArgs e)
         {
             if (cmbClient.SelectedIndex == -1 || 
-                cmbPledgeItem.SelectedIndex == -1 ||
+                string.IsNullOrWhiteSpace(txtDeviceType.Text) ||
                 cmbStatus.SelectedIndex == -1)
             {
                 MessageBox.Show("Заполните все обязательные поля", 
@@ -288,14 +293,15 @@ namespace Lab678.Forms
                 return;
             }
             
-            Loan.ClientId = ((ComboBoxItem)cmbClient.SelectedItem).Value;
-            Loan.PledgeItemId = ((ComboBoxItem)cmbPledgeItem.SelectedItem).Value;
-            Loan.LoanAmount = numLoanAmount.Value;
-            Loan.InterestRate = numInterestRate.Value;
-            Loan.IssueDate = dtpIssueDate.Value;
-            Loan.DueDate = dtpDueDate.Value;
-            Loan.Status = cmbStatus.SelectedItem.ToString();
-            Loan.PaidAmount = numPaidAmount.Value;
+            RepairOrder.ClientId = ((ComboBoxItem)cmbClient.SelectedItem).Value;
+            RepairOrder.DeviceType = txtDeviceType.Text.Trim();
+            RepairOrder.DeviceModel = txtDeviceModel.Text.Trim();
+            RepairOrder.ProblemDescription = txtProblemDescription.Text.Trim();
+            RepairOrder.EstimatedCost = numEstimatedCost.Value;
+            RepairOrder.OrderDate = dtpOrderDate.Value;
+            RepairOrder.CompletionDate = dtpCompletionDate.Value;
+            RepairOrder.Status = cmbStatus.SelectedItem.ToString();
+            RepairOrder.PaidAmount = numPaidAmount.Value;
             
             DialogResult = DialogResult.OK;
             Close();

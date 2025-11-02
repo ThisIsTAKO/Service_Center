@@ -1,3 +1,6 @@
+using System.ComponentModel;
+using System.Drawing;
+using System.Windows.Forms;
 namespace Lab678;
 
 static class Program

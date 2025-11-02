@@ -1,7 +1,11 @@
-using System;
+﻿using System;
+using System.ComponentModel;
+using System.Drawing;
+using System.Windows.Forms;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Linq;
+using System.Data;
 using Lab678.Services;
 using Lab678.Models;
 using Lab678.Forms;
@@ -13,8 +17,9 @@ namespace Lab678
         private DataService _dataService;
         private TabControl tabControl;
         private DataGridView dgvClients;
-        private DataGridView dgvPledgeItems;
-        private DataGridView dgvLoans;
+        private DataGridView dgvRepairOrders;
+        private DataGridView dgvSpareParts;
+        private DataGridView dgvRepairWorks;
         private DataGridView dgvPayments;
         private Label lblTitle;
         private Panel panelHeader;
@@ -24,6 +29,18 @@ namespace Lab678
         private Button btnDelete;
         private Button btnSave;
         private Button btnChangeTableColor;
+        private Panel panelFilters;
+        private TextBox txtSearch;
+        private ComboBox cmbColumnFilter;
+        private ComboBox cmbValueFilter;
+        private Button btnClearFilters;
+        private DataTable clientsTable;
+        private DataTable repairOrdersTable;
+        private DataTable sparePartsTable;
+        private DataTable repairWorksTable;
+        private DataTable paymentsTable;
+        private string _lastSortColumn = null;
+        private bool _sortAsc = true;
 
         public Form1()
         {
@@ -36,7 +53,7 @@ namespace Lab678
         private void SetupCustomUI()
         {
             // Настройки формы
-            this.Text = "ИС Ломбард - Управление базой данных";
+            this.Text = "ИС Сервисный Центр - Управление базой данных";
             this.Size = new Size(1200, 700);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.FromArgb(52, 73, 94);
@@ -49,13 +66,88 @@ namespace Lab678
 
             // Заголовок
             lblTitle = new Label();
-            lblTitle.Text = "Информационная система\n\"ЛОМБАРД\"";
+            lblTitle.Text = "Информационная система\n\"СЕРВИСНЫЙ ЦЕНТР\"";
             lblTitle.Font = new Font("Segoe UI", 18, FontStyle.Bold);
             lblTitle.ForeColor = Color.White;
             lblTitle.AutoSize = false;
             lblTitle.TextAlign = ContentAlignment.MiddleCenter;
             lblTitle.Dock = DockStyle.Fill;
             panelHeader.Controls.Add(lblTitle);
+
+            // Панель фильтров и поиска
+            panelFilters = new Panel();
+            panelFilters.Dock = DockStyle.Top;
+            panelFilters.Height = 50;
+            panelFilters.BackColor = Color.FromArgb(236, 240, 241);
+
+            Label lblSearch = new Label
+            {
+                Text = "Поиск:",
+                AutoSize = true,
+                Location = new Point(10, 15),
+                Font = new Font("Segoe UI", 10, FontStyle.Regular)
+            };
+            panelFilters.Controls.Add(lblSearch);
+
+            txtSearch = new TextBox
+            {
+                Location = new Point(70, 12),
+                Width = 250,
+                Font = new Font("Segoe UI", 10)
+            };
+            txtSearch.TextChanged += (s, e) => ApplyFilters();
+            panelFilters.Controls.Add(txtSearch);
+
+            Label lblColumn = new Label
+            {
+                Text = "Столбец:",
+                AutoSize = true,
+                Location = new Point(340, 15),
+                Font = new Font("Segoe UI", 10, FontStyle.Regular)
+            };
+            panelFilters.Controls.Add(lblColumn);
+
+            cmbColumnFilter = new ComboBox
+            {
+                Location = new Point(410, 12),
+                Width = 200,
+                Font = new Font("Segoe UI", 10),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cmbColumnFilter.SelectedIndexChanged += (s, e) => UpdateValueFilterOptions();
+            panelFilters.Controls.Add(cmbColumnFilter);
+
+            Label lblValue = new Label
+            {
+                Text = "Значение:",
+                AutoSize = true,
+                Location = new Point(620, 15),
+                Font = new Font("Segoe UI", 10, FontStyle.Regular)
+            };
+            panelFilters.Controls.Add(lblValue);
+
+            cmbValueFilter = new ComboBox
+            {
+                Location = new Point(700, 12),
+                Width = 220,
+                Font = new Font("Segoe UI", 10),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cmbValueFilter.SelectedIndexChanged += (s, e) => ApplyFilters();
+            panelFilters.Controls.Add(cmbValueFilter);
+
+            btnClearFilters = new Button
+            {
+                Text = "Сброс",
+                Location = new Point(930, 10),
+                Size = new Size(80, 30),
+                BackColor = Color.FromArgb(192, 57, 43),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+            };
+            btnClearFilters.Click += (s, e) => { txtSearch.Text = string.Empty; cmbColumnFilter.SelectedIndex = -1; cmbValueFilter.DataSource = null; ApplyFilters(); };
+            panelFilters.Controls.Add(btnClearFilters);
 
             // Панель кнопок
             panelButtons = new Panel();
@@ -123,9 +215,12 @@ namespace Lab678
             tabControl.Dock = DockStyle.Fill;
             tabControl.Font = new Font("Segoe UI", 10);
             tabControl.BackColor = Color.FromArgb(52, 73, 94);
+            tabControl.SelectedIndexChanged += (s, e) => { RefreshFilterControls(); ApplyFilters(); };
 
+            // Добавляем элементы в правильном порядке докинга
             this.Controls.Add(tabControl);
             this.Controls.Add(panelButtons);
+            this.Controls.Add(panelFilters);
             this.Controls.Add(panelHeader);
 
             // Вкладка "Клиенты"
@@ -135,19 +230,26 @@ namespace Lab678
             tabClients.Controls.Add(dgvClients);
             tabControl.TabPages.Add(tabClients);
 
-            // Вкладка "Залоговое имущество"
-            TabPage tabPledgeItems = new TabPage("Залоговое имущество");
-            tabPledgeItems.BackColor = Color.FromArgb(52, 73, 94);
-            dgvPledgeItems = CreateDataGridView();
-            tabPledgeItems.Controls.Add(dgvPledgeItems);
-            tabControl.TabPages.Add(tabPledgeItems);
+            // Вкладка "Заказы на ремонт"
+            TabPage tabRepairOrders = new TabPage("Заказы на ремонт");
+            tabRepairOrders.BackColor = Color.FromArgb(52, 73, 94);
+            dgvRepairOrders = CreateDataGridView();
+            tabRepairOrders.Controls.Add(dgvRepairOrders);
+            tabControl.TabPages.Add(tabRepairOrders);
 
-            // Вкладка "Займы"
-            TabPage tabLoans = new TabPage("Займы");
-            tabLoans.BackColor = Color.FromArgb(52, 73, 94);
-            dgvLoans = CreateDataGridView();
-            tabLoans.Controls.Add(dgvLoans);
-            tabControl.TabPages.Add(tabLoans);
+            // Вкладка "Запасные части"
+            TabPage tabSpareParts = new TabPage("Запасные части");
+            tabSpareParts.BackColor = Color.FromArgb(52, 73, 94);
+            dgvSpareParts = CreateDataGridView();
+            tabSpareParts.Controls.Add(dgvSpareParts);
+            tabControl.TabPages.Add(tabSpareParts);
+
+            // Вкладка "Ремонтные работы"
+            TabPage tabRepairWorks = new TabPage("Ремонтные работы");
+            tabRepairWorks.BackColor = Color.FromArgb(52, 73, 94);
+            dgvRepairWorks = CreateDataGridView();
+            tabRepairWorks.Controls.Add(dgvRepairWorks);
+            tabControl.TabPages.Add(tabRepairWorks);
 
             // Вкладка "Платежи"
             TabPage tabPayments = new TabPage("Платежи");
@@ -175,115 +277,279 @@ namespace Lab678
             dgv.RowTemplate.Height = 30;
             dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(240, 240, 240);
             dgv.EnableHeadersVisualStyles = false;
+            dgv.ColumnHeaderMouseClick += Dgv_ColumnHeaderMouseClick;
             return dgv;
         }
 
         private void LoadAllData()
         {
             LoadClients();
-            LoadPledgeItems();
-            LoadLoans();
+            LoadRepairOrders();
+            LoadSpareParts();
+            LoadRepairWorks();
             LoadPayments();
+            RefreshFilterControls();
+            ApplyFilters();
         }
 
         private void LoadClients()
         {
             var clients = _dataService.GetAllClients();
-            var displayData = clients.Select(c => new
+            clientsTable = new DataTable();
+            clientsTable.Columns.Add("ID", typeof(string));
+            clientsTable.Columns.Add("Фамилия", typeof(string));
+            clientsTable.Columns.Add("Имя", typeof(string));
+            clientsTable.Columns.Add("Отчество", typeof(string));
+            clientsTable.Columns.Add("Телефон", typeof(string));
+            clientsTable.Columns.Add("Email", typeof(string));
+            clientsTable.Columns.Add("Адрес", typeof(string));
+            clientsTable.Columns.Add("ДатаРегистрации", typeof(string));
+            foreach (var c in clients)
             {
-                ID = c.Id,
-                Фамилия = c.LastName,
-                Имя = c.FirstName,
-                Отчество = c.MiddleName,
-                Паспорт = c.PassportNumber,
-                Телефон = c.Phone,
-                Адрес = c.Address,
-                ДатаРегистрации = c.RegistrationDate.ToString("dd.MM.yyyy")
-            }).ToList();
-
-            dgvClients.DataSource = displayData;
+                clientsTable.Rows.Add(
+                    c.Id.ToString(),
+                    c.LastName,
+                    c.FirstName,
+                    c.MiddleName,
+                    c.Phone,
+                    c.Email,
+                    c.Address,
+                    c.RegistrationDate.ToString("dd.MM.yyyy")
+                );
+            }
+            dgvClients.DataSource = clientsTable;
         }
 
-        private void LoadPledgeItems()
+        private void LoadRepairOrders()
         {
-            var items = _dataService.GetAllPledgeItems();
-            var displayData = items.Select(p => new
+            var orders = _dataService.GetAllRepairOrders();
+            repairOrdersTable = new DataTable();
+            repairOrdersTable.Columns.Add("ID", typeof(string));
+            repairOrdersTable.Columns.Add("Клиент", typeof(string));
+            repairOrdersTable.Columns.Add("ТипУстройства", typeof(string));
+            repairOrdersTable.Columns.Add("МодельУстройства", typeof(string));
+            repairOrdersTable.Columns.Add("ОписаниеПроблемы", typeof(string));
+            repairOrdersTable.Columns.Add("ОценочнаяСтоимость", typeof(string));
+            repairOrdersTable.Columns.Add("ДатаЗаказа", typeof(string));
+            repairOrdersTable.Columns.Add("ДатаЗавершения", typeof(string));
+            repairOrdersTable.Columns.Add("Статус", typeof(string));
+            repairOrdersTable.Columns.Add("УплаченнаяСумма", typeof(string));
+            foreach (var o in orders)
             {
-                ID = p.Id,
-                Наименование = p.Name,
-                Категория = p.Category,
-                Описание = p.Description,
-                ОценочнаяСтоимость = p.EstimatedValue.ToString("N0") + " ₽",
-                Состояние = p.Condition
-            }).ToList();
+                repairOrdersTable.Rows.Add(
+                    o.Id.ToString(),
+                    _dataService.GetClientById(o.ClientId)?.FullName ?? "Неизвестен",
+                    o.DeviceType,
+                    o.DeviceModel,
+                    o.ProblemDescription,
+                    o.EstimatedCost.ToString("N0") + " ₽",
+                    o.OrderDate.ToString("dd.MM.yyyy"),
+                    o.CompletionDate?.ToString("dd.MM.yyyy") ?? "",
+                    o.Status,
+                    o.PaidAmount.ToString("N0") + " ₽"
+                );
+            }
+            dgvRepairOrders.DataSource = repairOrdersTable;
 
-            dgvPledgeItems.DataSource = displayData;
-        }
-
-        private void LoadLoans()
-        {
-            var loans = _dataService.GetAllLoans();
-            var displayData = loans.Select(l => new
-            {
-                ID = l.Id,
-                Клиент = _dataService.GetClientById(l.ClientId)?.FullName ?? "Неизвестен",
-                ЗалоговыйПредмет = _dataService.GetPledgeItemById(l.PledgeItemId)?.Name ?? "Неизвестен",
-                СуммаЗайма = l.LoanAmount.ToString("N0") + " ₽",
-                Процент = l.InterestRate.ToString("N1") + "%",
-                ДатаВыдачи = l.IssueDate.ToString("dd.MM.yyyy"),
-                СрокПогашения = l.DueDate.ToString("dd.MM.yyyy"),
-                Статус = l.Status,
-                УплаченнаяСумма = l.PaidAmount.ToString("N0") + " ₽",
-                Остаток = (l.LoanAmount - l.PaidAmount).ToString("N0") + " ₽"
-            }).ToList();
-
-            dgvLoans.DataSource = displayData;
-            
             // Цветовое выделение по статусу
-            for (int i = 0; i < dgvLoans.Rows.Count; i++)
+            for (int i = 0; i < dgvRepairOrders.Rows.Count; i++)
             {
-                string status = loans[i].Status;
-                if (status == "Активный")
+                if (i >= orders.Count) break;
+                string status = orders[i].Status;
+                if (status == "Завершен")
                 {
-                    dgvLoans.Rows[i].DefaultCellStyle.BackColor = Color.LightGreen;
+                    dgvRepairOrders.Rows[i].DefaultCellStyle.BackColor = Color.LightGreen;
                 }
-                else if (status == "Просрочен")
+                else if (status == "В работе")
                 {
-                    dgvLoans.Rows[i].DefaultCellStyle.BackColor = Color.LightCoral;
+                    dgvRepairOrders.Rows[i].DefaultCellStyle.BackColor = Color.LightYellow;
                 }
-                else if (status == "Погашен")
+                else if (status == "Принят")
                 {
-                    dgvLoans.Rows[i].DefaultCellStyle.BackColor = Color.LightGray;
+                    dgvRepairOrders.Rows[i].DefaultCellStyle.BackColor = Color.LightBlue;
+                }
+                else if (status == "Отменен")
+                {
+                    dgvRepairOrders.Rows[i].DefaultCellStyle.BackColor = Color.LightCoral;
                 }
             }
+        }
+
+        private void LoadSpareParts()
+        {
+            var parts = _dataService.GetAllSpareParts();
+            sparePartsTable = new DataTable();
+            sparePartsTable.Columns.Add("ID", typeof(string));
+            sparePartsTable.Columns.Add("Наименование", typeof(string));
+            sparePartsTable.Columns.Add("Категория", typeof(string));
+            sparePartsTable.Columns.Add("Описание", typeof(string));
+            sparePartsTable.Columns.Add("Стоимость", typeof(string));
+            sparePartsTable.Columns.Add("Остаток", typeof(string));
+            sparePartsTable.Columns.Add("Поставщик", typeof(string));
+            foreach (var p in parts)
+            {
+                sparePartsTable.Rows.Add(
+                    p.Id.ToString(),
+                    p.Name,
+                    p.Category,
+                    p.Description,
+                    p.Cost.ToString("N0") + " ₽",
+                    p.StockQuantity.ToString(),
+                    p.Supplier
+                );
+            }
+            dgvSpareParts.DataSource = sparePartsTable;
+        }
+
+        private void LoadRepairWorks()
+        {
+            var works = _dataService.GetAllRepairWorks();
+            repairWorksTable = new DataTable();
+            repairWorksTable.Columns.Add("ID", typeof(string));
+            repairWorksTable.Columns.Add("ЗаказНаРемонт", typeof(string));
+            repairWorksTable.Columns.Add("Мастер", typeof(string));
+            repairWorksTable.Columns.Add("ОписаниеРаботы", typeof(string));
+            repairWorksTable.Columns.Add("СтоимостьТруда", typeof(string));
+            repairWorksTable.Columns.Add("ВремяРаботы", typeof(string));
+            repairWorksTable.Columns.Add("ДатаРаботы", typeof(string));
+            foreach (var w in works)
+            {
+                var order = _dataService.GetRepairOrderById(w.RepairOrderId);
+                repairWorksTable.Rows.Add(
+                    w.Id.ToString(),
+                    $"Заказ №{w.RepairOrderId} - {order?.DeviceType ?? "Неизвестен"}",
+                    w.MasterName,
+                    w.WorkDescription,
+                    w.LaborCost.ToString("N0") + " ₽",
+                    $"{w.WorkTime.Hours}ч {w.WorkTime.Minutes}мин",
+                    w.WorkDate.ToString("dd.MM.yyyy")
+                );
+            }
+            dgvRepairWorks.DataSource = repairWorksTable;
         }
 
         private void LoadPayments()
         {
             var payments = _dataService.GetAllPayments();
-            var loans = _dataService.GetAllLoans();
-            
-            var displayData = payments.Select(p => new
+            paymentsTable = new DataTable();
+            paymentsTable.Columns.Add("ID", typeof(string));
+            paymentsTable.Columns.Add("ЗаказНаРемонт", typeof(string));
+            paymentsTable.Columns.Add("ДатаПлатежа", typeof(string));
+            paymentsTable.Columns.Add("Сумма", typeof(string));
+            paymentsTable.Columns.Add("ТипПлатежа", typeof(string));
+            foreach (var p in payments)
             {
-                ID = p.Id,
-                НомерЗайма = p.LoanId,
-                Клиент = _dataService.GetClientById(
-                    loans.FirstOrDefault(l => l.Id == p.LoanId)?.ClientId ?? 0)?.FullName ?? "Неизвестен",
-                ДатаПлатежа = p.PaymentDate.ToString("dd.MM.yyyy"),
-                Сумма = p.Amount.ToString("N0") + " ₽",
-                ТипПлатежа = p.PaymentType
-            }).ToList();
-
-            dgvPayments.DataSource = displayData;
+                var order = _dataService.GetRepairOrderById(p.RepairOrderId);
+                paymentsTable.Rows.Add(
+                    p.Id.ToString(),
+                    $"Заказ №{p.RepairOrderId} - {order?.DeviceType ?? "Неизвестен"}",
+                    p.PaymentDate.ToString("dd.MM.yyyy"),
+                    p.Amount.ToString("N0") + " ₽",
+                    p.PaymentType
+                );
+            }
+            dgvPayments.DataSource = paymentsTable;
         }
 
         private DataGridView GetCurrentDataGridView()
         {
             if (tabControl.SelectedIndex == 0) return dgvClients;
-            if (tabControl.SelectedIndex == 1) return dgvPledgeItems;
-            if (tabControl.SelectedIndex == 2) return dgvLoans;
-            if (tabControl.SelectedIndex == 3) return dgvPayments;
+            if (tabControl.SelectedIndex == 1) return dgvRepairOrders;
+            if (tabControl.SelectedIndex == 2) return dgvSpareParts;
+            if (tabControl.SelectedIndex == 3) return dgvRepairWorks;
+            if (tabControl.SelectedIndex == 4) return dgvPayments;
             return null;
+        }
+
+        private DataTable GetCurrentDataTable()
+        {
+            if (tabControl.SelectedIndex == 0) return clientsTable;
+            if (tabControl.SelectedIndex == 1) return repairOrdersTable;
+                        if (tabControl.SelectedIndex == 2) return sparePartsTable;
+            if (tabControl.SelectedIndex == 3) return repairWorksTable;
+            if (tabControl.SelectedIndex == 4) return paymentsTable;
+            return null;
+        }
+
+        private void Dgv_ColumnHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            var dgv = sender as DataGridView;
+            if (dgv == null || dgv.Columns.Count == 0) return;
+            var col = dgv.Columns[e.ColumnIndex];
+            var table = GetCurrentDataTable();
+            if (table == null) return;
+
+            string colName = col.HeaderText;
+            if (_lastSortColumn == colName)
+                _sortAsc = !_sortAsc;
+            else
+            {
+                _lastSortColumn = colName;
+                _sortAsc = true;
+            }
+
+            table.DefaultView.Sort = $"[{colName}] {(_sortAsc ? "ASC" : "DESC")}";
+        }
+
+        private void RefreshFilterControls()
+        {
+            var table = GetCurrentDataTable();
+            cmbColumnFilter.Items.Clear();
+            cmbValueFilter.DataSource = null;
+            if (table == null) return;
+            foreach (DataColumn col in table.Columns)
+            {
+                cmbColumnFilter.Items.Add(col.ColumnName);
+            }
+            cmbColumnFilter.SelectedIndex = -1;
+        }
+
+        private void UpdateValueFilterOptions()
+        {
+            var table = GetCurrentDataTable();
+            cmbValueFilter.DataSource = null;
+            if (table == null || cmbColumnFilter.SelectedIndex == -1) return;
+            string col = cmbColumnFilter.SelectedItem.ToString();
+            var values = table.AsEnumerable()
+                .Select(r => r[col]?.ToString() ?? string.Empty)
+                .Distinct()
+                .OrderBy(v => v)
+                .ToList();
+            values.Insert(0, "(Все)");
+            cmbValueFilter.DataSource = values;
+            cmbValueFilter.SelectedIndex = 0;
+        }
+
+        private void ApplyFilters()
+        {
+            var table = GetCurrentDataTable();
+            if (table == null) return;
+
+            string search = (txtSearch?.Text ?? string.Empty).Trim();
+            string filterExpr = string.Empty;
+
+            // Поиск по всем столбцам
+            if (!string.IsNullOrEmpty(search))
+            {
+                string esc = search.Replace("'", "''");
+                var colExprs = table.Columns
+                    .Cast<DataColumn>()
+                    .Select(c => $"Convert([{c.ColumnName}], 'System.String') LIKE '%{esc}%'");
+                filterExpr = "(" + string.Join(" OR ", colExprs) + ")";
+            }
+
+            // Фильтр по выбранному столбцу/значению
+            if (cmbColumnFilter != null && cmbColumnFilter.SelectedIndex != -1 &&
+                cmbValueFilter != null && cmbValueFilter.SelectedItem != null &&
+                cmbValueFilter.SelectedItem.ToString() != "(Все)")
+            {
+                string col = cmbColumnFilter.SelectedItem.ToString();
+                string val = cmbValueFilter.SelectedItem.ToString().Replace("'", "''");
+                string valueExpr = $"([{col}] = '{val}')";
+                if (string.IsNullOrEmpty(filterExpr)) filterExpr = valueExpr; else filterExpr += " AND " + valueExpr;
+            }
+
+            table.DefaultView.RowFilter = filterExpr;
         }
 
         private void BtnAdd_Click(object sender, EventArgs e)
@@ -303,37 +569,58 @@ namespace Lab678
                             _dataService.AddClient(newClient);
                             _dataService.SaveData();
                             LoadClients();
+                            RefreshFilterControls();
+                            ApplyFilters();
                             MessageBox.Show("Клиент успешно добавлен!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                         break;
                         
-                    case 1: // Залоговое имущество
-                        var pledgeItemForm = new PledgeItemForm();
-                        if (pledgeItemForm.ShowDialog() == DialogResult.OK)
+                    case 1: // Заказы на ремонт
+                        var repairOrderForm = new RepairOrderForm(_dataService);
+                        if (repairOrderForm.ShowDialog() == DialogResult.OK)
                         {
-                            var newPledgeItem = pledgeItemForm.PledgeItem;
-                            newPledgeItem.Id = GetNextPledgeItemId();
-                            _dataService.AddPledgeItem(newPledgeItem);
+                            var newOrder = repairOrderForm.RepairOrder;
+                            newOrder.Id = GetNextRepairOrderId();
+                            _dataService.AddRepairOrder(newOrder);
                             _dataService.SaveData();
-                            LoadPledgeItems();
-                            MessageBox.Show("Залоговое имущество успешно добавлено!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            LoadRepairOrders();
+                            RefreshFilterControls();
+                            ApplyFilters();
+                            MessageBox.Show("Заказ на ремонт успешно добавлен!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                         break;
                         
-                    case 2: // Займы
-                        var loanForm = new LoanForm(_dataService);
-                        if (loanForm.ShowDialog() == DialogResult.OK)
+                    case 2: // Запасные части
+                        var sparePartForm = new SparePartForm();
+                        if (sparePartForm.ShowDialog() == DialogResult.OK)
                         {
-                            var newLoan = loanForm.Loan;
-                            newLoan.Id = GetNextLoanId();
-                            _dataService.AddLoan(newLoan);
+                            var newPart = sparePartForm.SparePart;
+                            newPart.Id = GetNextSparePartId();
+                            _dataService.AddSparePart(newPart);
                             _dataService.SaveData();
-                            LoadLoans();
-                            MessageBox.Show("Займ успешно добавлен!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            LoadSpareParts();
+                            RefreshFilterControls();
+                            ApplyFilters();
+                            MessageBox.Show("Запасная часть успешно добавлена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                         break;
                         
-                    case 3: // Платежи
+                    case 3: // Ремонтные работы
+                        var repairWorkForm = new RepairWorkForm(_dataService);
+                        if (repairWorkForm.ShowDialog() == DialogResult.OK)
+                        {
+                            var newWork = repairWorkForm.RepairWork;
+                            newWork.Id = GetNextRepairWorkId();
+                            _dataService.AddRepairWork(newWork);
+                            _dataService.SaveData();
+                            LoadRepairWorks();
+                            RefreshFilterControls();
+                            ApplyFilters();
+                            MessageBox.Show("Ремонтная работа успешно добавлена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        break;
+                        
+                    case 4: // Платежи
                         var paymentForm = new PaymentForm(_dataService);
                         if (paymentForm.ShowDialog() == DialogResult.OK)
                         {
@@ -342,6 +629,8 @@ namespace Lab678
                             _dataService.AddPayment(newPayment);
                             _dataService.SaveData();
                             LoadPayments();
+                            RefreshFilterControls();
+                            ApplyFilters();
                             MessageBox.Show("Платеж успешно добавлен!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                         break;
@@ -379,40 +668,58 @@ namespace Lab678
                             {
                                 _dataService.SaveData();
                                 LoadClients();
+                                ApplyFilters();
                                 MessageBox.Show("Данные клиента успешно обновлены!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             }
                         }
                         break;
                         
-                    case 1: // Залоговое имущество
-                        var pledgeItem = _dataService.GetPledgeItemById(id);
-                        if (pledgeItem != null)
+                    case 1: // Заказы на ремонт
+                        var order = _dataService.GetRepairOrderById(id);
+                        if (order != null)
                         {
-                            var pledgeItemForm = new PledgeItemForm(pledgeItem);
-                            if (pledgeItemForm.ShowDialog() == DialogResult.OK)
+                            var orderForm = new RepairOrderForm(_dataService, order);
+                            if (orderForm.ShowDialog() == DialogResult.OK)
                             {
                                 _dataService.SaveData();
-                                LoadPledgeItems();
-                                MessageBox.Show("Данные залогового имущества успешно обновлены!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                LoadRepairOrders();
+                                ApplyFilters();
+                                MessageBox.Show("Данные заказа на ремонт успешно обновлены!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             }
                         }
                         break;
                         
-                    case 2: // Займы
-                        var loan = _dataService.GetAllLoans().FirstOrDefault(l => l.Id == id);
-                        if (loan != null)
+                    case 2: // Запасные части
+                        var part = _dataService.GetSparePartById(id);
+                        if (part != null)
                         {
-                            var loanForm = new LoanForm(_dataService, loan);
-                            if (loanForm.ShowDialog() == DialogResult.OK)
+                            var partForm = new SparePartForm(part);
+                            if (partForm.ShowDialog() == DialogResult.OK)
                             {
                                 _dataService.SaveData();
-                                LoadLoans();
-                                MessageBox.Show("Данные займа успешно обновлены!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                LoadSpareParts();
+                                ApplyFilters();
+                                MessageBox.Show("Данные запасной части успешно обновлены!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             }
                         }
                         break;
                         
-                    case 3: // Платежи
+                    case 3: // Ремонтные работы
+                        var work = _dataService.GetAllRepairWorks().FirstOrDefault(w => w.Id == id);
+                        if (work != null)
+                        {
+                            var workForm = new RepairWorkForm(_dataService, work);
+                            if (workForm.ShowDialog() == DialogResult.OK)
+                            {
+                                _dataService.SaveData();
+                                LoadRepairWorks();
+                                ApplyFilters();
+                                MessageBox.Show("Данные ремонтной работы успешно обновлены!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            }
+                        }
+                        break;
+                        
+                    case 4: // Платежи
                         var payment = _dataService.GetAllPayments().FirstOrDefault(p => p.Id == id);
                         if (payment != null)
                         {
@@ -421,6 +728,7 @@ namespace Lab678
                             {
                                 _dataService.SaveData();
                                 LoadPayments();
+                                ApplyFilters();
                                 MessageBox.Show("Данные платежа успешно обновлены!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             }
                         }
@@ -457,27 +765,39 @@ namespace Lab678
                         _dataService.RemoveClient(id);
                         _dataService.SaveData();
                         LoadClients();
+                        ApplyFilters();
                         MessageBox.Show("Клиент успешно удален!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         break;
                         
-                    case 1: // Залоговое имущество
-                        _dataService.RemovePledgeItem(id);
+                    case 1: // Заказы на ремонт
+                        _dataService.RemoveRepairOrder(id);
                         _dataService.SaveData();
-                        LoadPledgeItems();
-                        MessageBox.Show("Залоговое имущество успешно удалено!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        LoadRepairOrders();
+                        ApplyFilters();
+                        MessageBox.Show("Заказ на ремонт успешно удален!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         break;
                         
-                    case 2: // Займы
-                        _dataService.RemoveLoan(id);
+                    case 2: // Запасные части
+                        _dataService.RemoveSparePart(id);
                         _dataService.SaveData();
-                        LoadLoans();
-                        MessageBox.Show("Займ успешно удален!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        LoadSpareParts();
+                        ApplyFilters();
+                        MessageBox.Show("Запасная часть успешно удалена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         break;
                         
-                    case 3: // Платежи
+                    case 3: // Ремонтные работы
+                        _dataService.RemoveRepairWork(id);
+                        _dataService.SaveData();
+                        LoadRepairWorks();
+                        ApplyFilters();
+                        MessageBox.Show("Ремонтная работа успешно удалена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        break;
+                        
+                    case 4: // Платежи
                         _dataService.RemovePayment(id);
                         _dataService.SaveData();
                         LoadPayments();
+                        ApplyFilters();
                         MessageBox.Show("Платеж успешно удален!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         break;
                 }
@@ -492,7 +812,6 @@ namespace Lab678
         {
             try
             {
-                SaveGridDataToService();
                 _dataService.SaveData();
                 MessageBox.Show("Данные успешно сохранены в файл!", "Сохранение", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LoadAllData();
@@ -501,12 +820,6 @@ namespace Lab678
             {
                 MessageBox.Show($"Ошибка при сохранении: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-        }
-
-        private void SaveGridDataToService()
-        {
-            // Простое сохранение - данные уже в памяти через DataService
-            // Для полной реализации нужно синхронизировать DataGridView с объектами
         }
 
         private void BtnChangeTableColor_Click(object sender, EventArgs e)
@@ -550,16 +863,22 @@ namespace Lab678
             return clients.Any() ? clients.Max(c => c.Id) + 1 : 1;
         }
         
-        private int GetNextPledgeItemId()
+        private int GetNextRepairOrderId()
         {
-            var items = _dataService.GetAllPledgeItems();
-            return items.Any() ? items.Max(p => p.Id) + 1 : 1;
+            var orders = _dataService.GetAllRepairOrders();
+            return orders.Any() ? orders.Max(o => o.Id) + 1 : 1;
         }
         
-        private int GetNextLoanId()
+        private int GetNextSparePartId()
         {
-            var loans = _dataService.GetAllLoans();
-            return loans.Any() ? loans.Max(l => l.Id) + 1 : 1;
+            var parts = _dataService.GetAllSpareParts();
+            return parts.Any() ? parts.Max(p => p.Id) + 1 : 1;
+        }
+        
+        private int GetNextRepairWorkId()
+        {
+            var works = _dataService.GetAllRepairWorks();
+            return works.Any() ? works.Max(w => w.Id) + 1 : 1;
         }
         
         private int GetNextPaymentId()

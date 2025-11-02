@@ -1,9 +1,9 @@
 ﻿using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
-namespace Lab678
+namespace Lab678.Forms
 {
-    partial class Form1
+    partial class ClientForm
     {
         private System.ComponentModel.IContainer components = null;
 
@@ -21,8 +21,8 @@ namespace Lab678
             this.components = new System.ComponentModel.Container();
             this.SuspendLayout();
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 450);
-            this.Text = "Form1";
+            this.ClientSize = new System.Drawing.Size(500, 450);
+            this.Text = "ClientForm";
             this.ResumeLayout(false);
         }
     }

@@ -1,22 +1,27 @@
+﻿#nullable disable
+using System.ComponentModel;
+using System.Drawing;
+using System.Windows.Forms;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
 using Lab678.Models;
-
 namespace Lab678.Forms
 {
-    public class ClientForm : Form
+    public partial class ClientForm : Form
     {
         private TextBox txtLastName;
         private TextBox txtFirstName;
         private TextBox txtMiddleName;
-        private TextBox txtPassportNumber;
         private TextBox txtPhone;
+        private TextBox txtEmail;
         private TextBox txtAddress;
         private DateTimePicker dtpRegistrationDate;
         private Button btnSave;
         private Button btnCancel;
         
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Client Client { get; private set; }
         
         public ClientForm(Client client = null)
@@ -98,29 +103,11 @@ namespace Lab678.Forms
             };
             this.Controls.Add(txtMiddleName);
             
-            // Паспорт
-            Label lblPassportNumber = new Label
-            {
-                Text = "Паспорт:",
-                Location = new Point(leftMargin, topMargin + verticalSpacing * 3),
-                Size = new Size(labelWidth, 20),
-                Font = new Font("Segoe UI", 10)
-            };
-            this.Controls.Add(lblPassportNumber);
-            
-            txtPassportNumber = new TextBox
-            {
-                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 3),
-                Size = new Size(textBoxWidth, 25),
-                Font = new Font("Segoe UI", 10)
-            };
-            this.Controls.Add(txtPassportNumber);
-            
             // Телефон
             Label lblPhone = new Label
             {
                 Text = "Телефон:",
-                Location = new Point(leftMargin, topMargin + verticalSpacing * 4),
+                Location = new Point(leftMargin, topMargin + verticalSpacing * 3),
                 Size = new Size(labelWidth, 20),
                 Font = new Font("Segoe UI", 10)
             };
@@ -128,11 +115,29 @@ namespace Lab678.Forms
             
             txtPhone = new TextBox
             {
-                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 4),
+                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 3),
                 Size = new Size(textBoxWidth, 25),
                 Font = new Font("Segoe UI", 10)
             };
             this.Controls.Add(txtPhone);
+            
+            // Email
+            Label lblEmail = new Label
+            {
+                Text = "Email:",
+                Location = new Point(leftMargin, topMargin + verticalSpacing * 4),
+                Size = new Size(labelWidth, 20),
+                Font = new Font("Segoe UI", 10)
+            };
+            this.Controls.Add(lblEmail);
+            
+            txtEmail = new TextBox
+            {
+                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 4),
+                Size = new Size(textBoxWidth, 25),
+                Font = new Font("Segoe UI", 10)
+            };
+            this.Controls.Add(txtEmail);
             
             // Адрес
             Label lblAddress = new Label
@@ -204,8 +209,8 @@ namespace Lab678.Forms
             txtLastName.Text = Client.LastName;
             txtFirstName.Text = Client.FirstName;
             txtMiddleName.Text = Client.MiddleName;
-            txtPassportNumber.Text = Client.PassportNumber;
             txtPhone.Text = Client.Phone;
+            txtEmail.Text = Client.Email;
             txtAddress.Text = Client.Address;
             dtpRegistrationDate.Value = Client.RegistrationDate;
         }
@@ -223,8 +228,8 @@ namespace Lab678.Forms
             Client.LastName = txtLastName.Text.Trim();
             Client.FirstName = txtFirstName.Text.Trim();
             Client.MiddleName = txtMiddleName.Text.Trim();
-            Client.PassportNumber = txtPassportNumber.Text.Trim();
             Client.Phone = txtPhone.Text.Trim();
+            Client.Email = txtEmail.Text.Trim();
             Client.Address = txtAddress.Text.Trim();
             Client.RegistrationDate = dtpRegistrationDate.Value;
             

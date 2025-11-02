@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
@@ -9,15 +9,29 @@ namespace Lab678.Services
     public class DataService
     {
         private readonly string _dataFilePath;
-        private PawnShopDatabase _database;
+        private ServiceCenterDatabase _database;
 
-        public DataService(string dataFilePath = "pawnshop_data.json")
+        public DataService(string dataFilePath = null)
         {
-            _dataFilePath = dataFilePath;
+            // Если путь не указан, используем папку проекта
+            _dataFilePath = dataFilePath ?? GetProjectDataFilePath();
             LoadData();
         }
 
-        // Загрузка данных из файла
+        private string GetProjectDataFilePath()
+        {
+            // Получаем текущую директорию (обычно bin/Debug или bin/Release)
+            string currentDir = Directory.GetCurrentDirectory();
+            
+            // Поднимаемся на 2 уровня вверх до папки проекта
+            string projectDir = Directory.GetParent(currentDir).Parent.Parent.FullName;
+            
+            // Создаем путь к файлу в папке проекта
+            string dataFile = Path.Combine(projectDir, "servicecenter_data.json");
+            
+            return dataFile;
+        }
+
         public void LoadData()
         {
             if (File.Exists(_dataFilePath))
@@ -25,376 +39,102 @@ namespace Lab678.Services
                 try
                 {
                     string json = File.ReadAllText(_dataFilePath);
-                    _database = JsonSerializer.Deserialize<PawnShopDatabase>(json);
+                    _database = JsonSerializer.Deserialize<ServiceCenterDatabase>(json);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    _database = new PawnShopDatabase();
+                    // В случае ошибки создаем новую базу с тестовыми данными
+                    _database = new ServiceCenterDatabase();
                     InitializeTestData();
+                    Console.WriteLine($"Ошибка загрузки данных: {ex.Message}. Созданы тестовые данные.");
                 }
             }
             else
             {
-                _database = new PawnShopDatabase();
+                _database = new ServiceCenterDatabase();
                 InitializeTestData();
             }
         }
 
-        // Сохранение данных в файл
         public void SaveData()
         {
-            var options = new JsonSerializerOptions { WriteIndented = true };
-            string json = JsonSerializer.Serialize(_database, options);
-            File.WriteAllText(_dataFilePath, json);
+            try
+            {
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                string json = JsonSerializer.Serialize(_database, options);
+                
+                // Создаем директорию, если она не существует
+                string directory = Path.GetDirectoryName(_dataFilePath);
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+                
+                File.WriteAllText(_dataFilePath, json);
+                Console.WriteLine($"Данные сохранены в: {_dataFilePath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка сохранения данных: {ex.Message}");
+                throw;
+            }
         }
 
-        // Получение всех клиентов
-        public List<Client> GetAllClients()
-        {
-            return _database.Clients;
-        }
+        // Остальные методы остаются без изменений
+        public List<Client> GetAllClients() => _database.Clients;
+        public List<RepairOrder> GetAllRepairOrders() => _database.RepairOrders;
+        public List<SparePart> GetAllSpareParts() => _database.SpareParts;
+        public List<RepairWork> GetAllRepairWorks() => _database.RepairWorks;
+        public List<Payment> GetAllPayments() => _database.Payments;
 
-        // Получение всех залоговых предметов
-        public List<PledgeItem> GetAllPledgeItems()
-        {
-            return _database.PledgeItems;
-        }
+        public Client GetClientById(int id) => _database.Clients.Find(c => c.Id == id);
+        public RepairOrder GetRepairOrderById(int id) => _database.RepairOrders.Find(r => r.Id == id);
+        public SparePart GetSparePartById(int id) => _database.SpareParts.Find(s => s.Id == id);
 
-        // Получение всех займов
-        public List<Loan> GetAllLoans()
-        {
-            return _database.Loans;
-        }
+        public void AddClient(Client client) => _database.Clients.Add(client);
+        public void AddRepairOrder(RepairOrder order) => _database.RepairOrders.Add(order);
+        public void AddSparePart(SparePart part) => _database.SpareParts.Add(part);
+        public void AddRepairWork(RepairWork work) => _database.RepairWorks.Add(work);
+        public void AddPayment(Payment payment) => _database.Payments.Add(payment);
 
-        // Получение всех платежей
-        public List<Payment> GetAllPayments()
-        {
-            return _database.Payments;
-        }
+        public void RemoveClient(int id) => _database.Clients.RemoveAll(c => c.Id == id);
+        public void RemoveRepairOrder(int id) => _database.RepairOrders.RemoveAll(r => r.Id == id);
+        public void RemoveSparePart(int id) => _database.SpareParts.RemoveAll(s => s.Id == id);
+        public void RemoveRepairWork(int id) => _database.RepairWorks.RemoveAll(w => w.Id == id);
+        public void RemovePayment(int id) => _database.Payments.RemoveAll(p => p.Id == id);
 
-        // Получение клиента по ID
-        public Client GetClientById(int id)
-        {
-            return _database.Clients.Find(c => c.Id == id);
-        }
-
-        // Получение залогового предмета по ID
-        public PledgeItem GetPledgeItemById(int id)
-        {
-            return _database.PledgeItems.Find(p => p.Id == id);
-        }
-
-        // Добавление клиента
-        public void AddClient(Client client)
-        {
-            _database.Clients.Add(client);
-        }
-
-        // Добавление залогового предмета
-        public void AddPledgeItem(PledgeItem item)
-        {
-            _database.PledgeItems.Add(item);
-        }
-
-        // Добавление займа
-        public void AddLoan(Loan loan)
-        {
-            _database.Loans.Add(loan);
-        }
-
-        // Добавление платежа
-        public void AddPayment(Payment payment)
-        {
-            _database.Payments.Add(payment);
-        }
-
-        // Удаление клиента
-        public void RemoveClient(int id)
-        {
-            var client = _database.Clients.Find(c => c.Id == id);
-            if (client != null) _database.Clients.Remove(client);
-        }
-
-        // Удаление залогового предмета
-        public void RemovePledgeItem(int id)
-        {
-            var item = _database.PledgeItems.Find(p => p.Id == id);
-            if (item != null) _database.PledgeItems.Remove(item);
-        }
-
-        // Удаление займа
-        public void RemoveLoan(int id)
-        {
-            var loan = _database.Loans.Find(l => l.Id == id);
-            if (loan != null) _database.Loans.Remove(loan);
-        }
-
-        // Удаление платежа
-        public void RemovePayment(int id)
-        {
-            var payment = _database.Payments.Find(p => p.Id == id);
-            if (payment != null) _database.Payments.Remove(payment);
-        }
-
-        // Инициализация тестовых данных
         private void InitializeTestData()
         {
-            // Клиенты
+            // Тестовые данные остаются без изменений
             _database.Clients = new List<Client>
             {
-                new Client
-                {
-                    Id = 1,
-                    LastName = "Иванов",
-                    FirstName = "Иван",
-                    MiddleName = "Иванович",
-                    PassportNumber = "4512 123456",
-                    Phone = "+7 (912) 345-67-89",
-                    Address = "г. Москва, ул. Ленина, д. 10, кв. 5",
-                    RegistrationDate = new DateTime(2023, 1, 15)
-                },
-                new Client
-                {
-                    Id = 2,
-                    LastName = "Петрова",
-                    FirstName = "Мария",
-                    MiddleName = "Сергеевна",
-                    PassportNumber = "4513 234567",
-                    Phone = "+7 (912) 456-78-90",
-                    Address = "г. Москва, ул. Пушкина, д. 20, кв. 15",
-                    RegistrationDate = new DateTime(2023, 2, 20)
-                },
-                new Client
-                {
-                    Id = 3,
-                    LastName = "Сидоров",
-                    FirstName = "Петр",
-                    MiddleName = "Алексеевич",
-                    PassportNumber = "4514 345678",
-                    Phone = "+7 (912) 567-89-01",
-                    Address = "г. Москва, ул. Гагарина, д. 30, кв. 25",
-                    RegistrationDate = new DateTime(2023, 3, 10)
-                },
-                new Client
-                {
-                    Id = 4,
-                    LastName = "Смирнова",
-                    FirstName = "Елена",
-                    MiddleName = "Дмитриевна",
-                    PassportNumber = "4515 456789",
-                    Phone = "+7 (912) 678-90-12",
-                    Address = "г. Москва, ул. Кирова, д. 40, кв. 35",
-                    RegistrationDate = new DateTime(2023, 4, 5)
-                },
-                new Client
-                {
-                    Id = 5,
-                    LastName = "Козлов",
-                    FirstName = "Дмитрий",
-                    MiddleName = "Викторович",
-                    PassportNumber = "4516 567890",
-                    Phone = "+7 (912) 789-01-23",
-                    Address = "г. Москва, ул. Мира, д. 50, кв. 45",
-                    RegistrationDate = new DateTime(2023, 5, 12)
-                }
+                new Client { Id = 1, LastName = "Иванов", FirstName = "Иван", MiddleName = "Иванович", Phone = "+7 (912) 345-67-89", Email = "ivanov@example.com", Address = "г. Москва, ул. Ленина, д. 10", RegistrationDate = new DateTime(2023, 1, 15) },
+                new Client { Id = 2, LastName = "Петрова", FirstName = "Мария", MiddleName = "Сергеевна", Phone = "+7 (912) 456-78-90", Email = "petrova@example.com", Address = "г. Москва, ул. Пушкина, д. 20", RegistrationDate = new DateTime(2023, 2, 20) },
+                new Client { Id = 3, LastName = "Сидоров", FirstName = "Петр", MiddleName = "Алексеевич", Phone = "+7 (912) 567-89-01", Email = "sidorov@example.com", Address = "г. Москва, ул. Гагарина, д. 30", RegistrationDate = new DateTime(2023, 3, 10) }
             };
 
-            // Залоговое имущество
-            _database.PledgeItems = new List<PledgeItem>
+            _database.RepairOrders = new List<RepairOrder>
             {
-                new PledgeItem
-                {
-                    Id = 1,
-                    Name = "Золотое кольцо 585 пробы",
-                    Category = "Ювелирные изделия",
-                    Description = "Обручальное кольцо, вес 3.5г",
-                    EstimatedValue = 15000,
-                    Condition = "Отличное"
-                },
-                new PledgeItem
-                {
-                    Id = 2,
-                    Name = "Ноутбук ASUS ROG",
-                    Category = "Электроника",
-                    Description = "Gaming ноутбук, RTX 3060, 16GB RAM",
-                    EstimatedValue = 80000,
-                    Condition = "Хорошее"
-                },
-                new PledgeItem
-                {
-                    Id = 3,
-                    Name = "iPhone 13 Pro Max",
-                    Category = "Электроника",
-                    Description = "256GB, черный, полный комплект",
-                    EstimatedValue = 65000,
-                    Condition = "Отличное"
-                },
-                new PledgeItem
-                {
-                    Id = 4,
-                    Name = "Золотая цепочка 750 пробы",
-                    Category = "Ювелирные изделия",
-                    Description = "Плетение бисмарк, вес 25г",
-                    EstimatedValue = 120000,
-                    Condition = "Отличное"
-                },
-                new PledgeItem
-                {
-                    Id = 5,
-                    Name = "Часы Rolex Submariner",
-                    Category = "Часы",
-                    Description = "Швейцарские механические часы",
-                    EstimatedValue = 450000,
-                    Condition = "Отличное"
-                },
-                new PledgeItem
-                {
-                    Id = 6,
-                    Name = "Серебряные серьги с бриллиантами",
-                    Category = "Ювелирные изделия",
-                    Description = "925 проба, бриллианты 0.5 карат",
-                    EstimatedValue = 35000,
-                    Condition = "Хорошее"
-                },
-                new PledgeItem
-                {
-                    Id = 7,
-                    Name = "PlayStation 5",
-                    Category = "Электроника",
-                    Description = "Игровая консоль, 825GB, 2 джойстика",
-                    EstimatedValue = 45000,
-                    Condition = "Отличное"
-                }
+                new RepairOrder { Id = 1, ClientId = 1, DeviceType = "Смартфон", DeviceModel = "iPhone 13", ProblemDescription = "Разбит экран", EstimatedCost = 15000, OrderDate = new DateTime(2024, 1, 10), CompletionDate = new DateTime(2024, 1, 12), Status = "Завершен", PaidAmount = 15000 },
+                new RepairOrder { Id = 2, ClientId = 2, DeviceType = "Ноутбук", DeviceModel = "ASUS ROG", ProblemDescription = "Не включается", EstimatedCost = 8000, OrderDate = new DateTime(2024, 2, 15), Status = "В работе", PaidAmount = 4000 }
             };
 
-            // Займы
-            _database.Loans = new List<Loan>
+            _database.SpareParts = new List<SparePart>
             {
-                new Loan
-                {
-                    Id = 1,
-                    ClientId = 1,
-                    PledgeItemId = 1,
-                    LoanAmount = 10000,
-                    InterestRate = 5.0m,
-                    IssueDate = new DateTime(2024, 1, 10),
-                    DueDate = new DateTime(2024, 4, 10),
-                    Status = "Активный",
-                    PaidAmount = 0
-                },
-                new Loan
-                {
-                    Id = 2,
-                    ClientId = 2,
-                    PledgeItemId = 2,
-                    LoanAmount = 50000,
-                    InterestRate = 4.5m,
-                    IssueDate = new DateTime(2024, 2, 15),
-                    DueDate = new DateTime(2024, 5, 15),
-                    Status = "Активный",
-                    PaidAmount = 15000
-                },
-                new Loan
-                {
-                    Id = 3,
-                    ClientId = 3,
-                    PledgeItemId = 3,
-                    LoanAmount = 40000,
-                    InterestRate = 4.0m,
-                    IssueDate = new DateTime(2023, 12, 1),
-                    DueDate = new DateTime(2024, 3, 1),
-                    Status = "Погашен",
-                    PaidAmount = 44800
-                },
-                new Loan
-                {
-                    Id = 4,
-                    ClientId = 4,
-                    PledgeItemId = 4,
-                    LoanAmount = 80000,
-                    InterestRate = 3.5m,
-                    IssueDate = new DateTime(2024, 1, 20),
-                    DueDate = new DateTime(2024, 4, 20),
-                    Status = "Активный",
-                    PaidAmount = 25000
-                },
-                new Loan
-                {
-                    Id = 5,
-                    ClientId = 5,
-                    PledgeItemId = 5,
-                    LoanAmount = 300000,
-                    InterestRate = 3.0m,
-                    IssueDate = new DateTime(2024, 2, 1),
-                    DueDate = new DateTime(2024, 8, 1),
-                    Status = "Активный",
-                    PaidAmount = 50000
-                },
-                new Loan
-                {
-                    Id = 6,
-                    ClientId = 1,
-                    PledgeItemId = 6,
-                    LoanAmount = 20000,
-                    InterestRate = 4.5m,
-                    IssueDate = new DateTime(2023, 11, 15),
-                    DueDate = new DateTime(2024, 2, 15),
-                    Status = "Просрочен",
-                    PaidAmount = 10000
-                }
+                new SparePart { Id = 1, Name = "Экран iPhone 13", Category = "Электроника", Description = "Оригинальный экран", Cost = 10000, StockQuantity = 5, Supplier = "Apple" },
+                new SparePart { Id = 2, Name = "Батарея ASUS", Category = "Электроника", Description = "Литий-ионная батарея", Cost = 3000, StockQuantity = 10, Supplier = "ASUS" }
             };
 
-            // Платежи
+            _database.RepairWorks = new List<RepairWork>
+            {
+                new RepairWork { Id = 1, RepairOrderId = 1, MasterName = "Петров А.А.", WorkDescription = "Замена экрана", LaborCost = 2000, WorkTime = TimeSpan.FromHours(2), WorkDate = new DateTime(2024, 1, 12) },
+                new RepairWork { Id = 2, RepairOrderId = 2, MasterName = "Сидоров Б.Б.", WorkDescription = "Диагностика", LaborCost = 1000, WorkTime = TimeSpan.FromHours(1), WorkDate = new DateTime(2024, 2, 16) }
+            };
+
             _database.Payments = new List<Payment>
             {
-                new Payment
-                {
-                    Id = 1,
-                    LoanId = 2,
-                    PaymentDate = new DateTime(2024, 3, 1),
-                    Amount = 15000,
-                    PaymentType = "Основной долг"
-                },
-                new Payment
-                {
-                    Id = 2,
-                    LoanId = 3,
-                    PaymentDate = new DateTime(2024, 2, 15),
-                    Amount = 40000,
-                    PaymentType = "Основной долг"
-                },
-                new Payment
-                {
-                    Id = 3,
-                    LoanId = 3,
-                    PaymentDate = new DateTime(2024, 2, 15),
-                    Amount = 4800,
-                    PaymentType = "Проценты"
-                },
-                new Payment
-                {
-                    Id = 4,
-                    LoanId = 4,
-                    PaymentDate = new DateTime(2024, 2, 10),
-                    Amount = 25000,
-                    PaymentType = "Основной долг"
-                },
-                new Payment
-                {
-                    Id = 5,
-                    LoanId = 5,
-                    PaymentDate = new DateTime(2024, 3, 1),
-                    Amount = 50000,
-                    PaymentType = "Основной долг"
-                },
-                new Payment
-                {
-                    Id = 6,
-                    LoanId = 6,
-                    PaymentDate = new DateTime(2023, 12, 20),
-                    Amount = 10000,
-                    PaymentType = "Основной долг"
-                }
+                new Payment { Id = 1, RepairOrderId = 1, PaymentDate = new DateTime(2024, 1, 12), Amount = 15000, PaymentType = "Оплата по факту" },
+                new Payment { Id = 2, RepairOrderId = 2, PaymentDate = new DateTime(2024, 2, 15), Amount = 4000, PaymentType = "Предоплата" }
             };
 
             SaveData();

@@ -1,36 +1,40 @@
-using System;
+﻿#nullable disable
+using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
+using System;
 using Lab678.Models;
-
 namespace Lab678.Forms
 {
-    public class PledgeItemForm : Form
+    public partial class SparePartForm : Form
     {
         private TextBox txtName;
         private ComboBox cmbCategory;
         private TextBox txtDescription;
-        private NumericUpDown numEstimatedValue;
-        private ComboBox cmbCondition;
+        private NumericUpDown numCost;
+        private NumericUpDown numStockQuantity;
+        private TextBox txtSupplier;
         private Button btnSave;
         private Button btnCancel;
         
-        public PledgeItem PledgeItem { get; private set; }
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public SparePart SparePart { get; private set; }
         
-        public PledgeItemForm(PledgeItem pledgeItem = null)
+        public SparePartForm(SparePart sparePart = null)
         {
-            PledgeItem = pledgeItem ?? new PledgeItem();
+            SparePart = sparePart ?? new SparePart();
             InitializeComponents();
-            if (pledgeItem != null)
+            if (sparePart != null)
             {
-                LoadPledgeItemData();
+                LoadSparePartData();
             }
         }
         
         private void InitializeComponents()
         {
-            this.Text = PledgeItem.Id == 0 ? "Добавить залоговое имущество" : "Редактировать залоговое имущество";
-            this.Size = new Size(500, 400);
+            this.Text = SparePart.Id == 0 ? "Добавить запасную часть" : "Редактировать запасную часть";
+            this.Size = new Size(500, 450);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -77,7 +81,7 @@ namespace Lab678.Forms
                 Font = new Font("Segoe UI", 10),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
-            cmbCategory.Items.AddRange(new object[] { "Ювелирные изделия", "Электроника", "Часы", "Антиквариат", "Бытовая техника", "Другое" });
+            cmbCategory.Items.AddRange(new object[] { "Электроника", "Механика", "Корпус", "Другое" });
             this.Controls.Add(cmbCategory);
             
             // Описание
@@ -99,17 +103,17 @@ namespace Lab678.Forms
             };
             this.Controls.Add(txtDescription);
             
-            // Оценочная стоимость
-            Label lblEstimatedValue = new Label
+            // Стоимость
+            Label lblCost = new Label
             {
-                Text = "Оценочная стоимость:",
+                Text = "Стоимость:",
                 Location = new Point(leftMargin, topMargin + verticalSpacing * 3 + 15),
                 Size = new Size(labelWidth, 20),
                 Font = new Font("Segoe UI", 10)
             };
-            this.Controls.Add(lblEstimatedValue);
+            this.Controls.Add(lblCost);
             
-            numEstimatedValue = new NumericUpDown
+            numCost = new NumericUpDown
             {
                 Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 3 + 15),
                 Size = new Size(textBoxWidth, 25),
@@ -119,33 +123,52 @@ namespace Lab678.Forms
                 DecimalPlaces = 0,
                 ThousandsSeparator = true
             };
-            this.Controls.Add(numEstimatedValue);
+            this.Controls.Add(numCost);
             
-            // Состояние
-            Label lblCondition = new Label
+            // Остаток на складе
+            Label lblStockQuantity = new Label
             {
-                Text = "Состояние:",
+                Text = "Остаток на складе:",
                 Location = new Point(leftMargin, topMargin + verticalSpacing * 4 + 15),
                 Size = new Size(labelWidth, 20),
                 Font = new Font("Segoe UI", 10)
             };
-            this.Controls.Add(lblCondition);
+            this.Controls.Add(lblStockQuantity);
             
-            cmbCondition = new ComboBox
+            numStockQuantity = new NumericUpDown
             {
                 Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 4 + 15),
                 Size = new Size(textBoxWidth, 25),
                 Font = new Font("Segoe UI", 10),
-                DropDownStyle = ComboBoxStyle.DropDownList
+                Maximum = 100000,
+                Minimum = 0,
+                DecimalPlaces = 0
             };
-            cmbCondition.Items.AddRange(new object[] { "Отличное", "Хорошее", "Удовлетворительное", "Плохое" });
-            this.Controls.Add(cmbCondition);
+            this.Controls.Add(numStockQuantity);
+            
+            // Поставщик
+            Label lblSupplier = new Label
+            {
+                Text = "Поставщик:",
+                Location = new Point(leftMargin, topMargin + verticalSpacing * 5 + 15),
+                Size = new Size(labelWidth, 20),
+                Font = new Font("Segoe UI", 10)
+            };
+            this.Controls.Add(lblSupplier);
+            
+            txtSupplier = new TextBox
+            {
+                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 5 + 15),
+                Size = new Size(textBoxWidth, 25),
+                Font = new Font("Segoe UI", 10)
+            };
+            this.Controls.Add(txtSupplier);
             
             // Кнопки
             btnSave = new Button
             {
                 Text = "Сохранить",
-                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 5 + 30),
+                Location = new Point(leftMargin + 160, topMargin + verticalSpacing * 6 + 30),
                 Size = new Size(140, 35),
                 BackColor = Color.FromArgb(46, 204, 113),
                 ForeColor = Color.White,
@@ -158,7 +181,7 @@ namespace Lab678.Forms
             btnCancel = new Button
             {
                 Text = "Отмена",
-                Location = new Point(leftMargin + 320, topMargin + verticalSpacing * 5 + 30),
+                Location = new Point(leftMargin + 320, topMargin + verticalSpacing * 6 + 30),
                 Size = new Size(140, 35),
                 BackColor = Color.FromArgb(231, 76, 60),
                 ForeColor = Color.White,
@@ -169,33 +192,32 @@ namespace Lab678.Forms
             this.Controls.Add(btnCancel);
         }
         
-        private void LoadPledgeItemData()
+        private void LoadSparePartData()
         {
-            txtName.Text = PledgeItem.Name;
-            if (cmbCategory.Items.Contains(PledgeItem.Category))
-                cmbCategory.SelectedItem = PledgeItem.Category;
-            txtDescription.Text = PledgeItem.Description;
-            numEstimatedValue.Value = PledgeItem.EstimatedValue;
-            if (cmbCondition.Items.Contains(PledgeItem.Condition))
-                cmbCondition.SelectedItem = PledgeItem.Condition;
+            txtName.Text = SparePart.Name;
+            if (cmbCategory.Items.Contains(SparePart.Category)) cmbCategory.SelectedItem = SparePart.Category;
+            txtDescription.Text = SparePart.Description;
+            numCost.Value = SparePart.Cost;
+            numStockQuantity.Value = SparePart.StockQuantity;
+            txtSupplier.Text = SparePart.Supplier;
         }
         
         private void BtnSave_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtName.Text) || 
-                cmbCategory.SelectedIndex == -1 ||
-                cmbCondition.SelectedIndex == -1)
+                cmbCategory.SelectedIndex == -1)
             {
                 MessageBox.Show("Заполните все обязательные поля", 
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
             
-            PledgeItem.Name = txtName.Text.Trim();
-            PledgeItem.Category = cmbCategory.SelectedItem.ToString();
-            PledgeItem.Description = txtDescription.Text.Trim();
-            PledgeItem.EstimatedValue = numEstimatedValue.Value;
-            PledgeItem.Condition = cmbCondition.SelectedItem.ToString();
+            SparePart.Name = txtName.Text.Trim();
+            SparePart.Category = cmbCategory.SelectedItem.ToString();
+            SparePart.Description = txtDescription.Text.Trim();
+            SparePart.Cost = numCost.Value;
+            SparePart.StockQuantity = (int)numStockQuantity.Value;
+            SparePart.Supplier = txtSupplier.Text.Trim();
             
             DialogResult = DialogResult.OK;
             Close();
